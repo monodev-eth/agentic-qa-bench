@@ -79,6 +79,8 @@ function makeSession(email: string): Session {
 
 // --- Query builder for from('todos') ---
 
+type MockError = { message: string; code?: string }
+
 type Builder = {
   select: (cols?: string) => Builder
   insert: (row: Partial<Todo>) => Builder
@@ -86,9 +88,9 @@ type Builder = {
   delete: () => Builder
   eq: (col: keyof Todo, val: unknown) => Builder
   order: (col: keyof Todo, opts?: { ascending?: boolean }) => Builder
-  single: () => Promise<{ data: Todo | null; error: Error | null }>
+  single: () => Promise<{ data: Todo | null; error: MockError | null }>
   throwOnError: () => Builder
-  then: <T>(onfulfilled: (v: { data: Todo[] | null; error: Error | null }) => T) => Promise<T>
+  then: <T>(onfulfilled: (v: { data: Todo[] | null; error: MockError | null }) => T) => Promise<T>
 }
 
 function todosBuilder(): Builder {
@@ -163,7 +165,19 @@ function todosBuilder(): Builder {
     },
     async single() {
       const { data } = run()
-      return { data: data[0] ?? null, error: null }
+      if (data.length === 0) {
+        return {
+          data: null,
+          error: { message: 'JSON object requested, multiple (or no) rows returned', code: 'PGRST116' },
+        }
+      }
+      if (data.length > 1) {
+        return {
+          data: null,
+          error: { message: `JSON object requested, multiple (or no) rows returned (got ${data.length})`, code: 'PGRST116' },
+        }
+      }
+      return { data: data[0], error: null }
     },
     throwOnError() {
       return builder
@@ -229,7 +243,12 @@ export const mockClient = {
       return { error: null }
     },
   },
-  from(_table: string) {
+  from(table: string) {
+    if (table !== 'todos') {
+      throw new Error(
+        `Mock client: unknown table '${table}'. Only 'todos' is supported in benchmark mode.`,
+      )
+    }
     return todosBuilder()
   },
 }
