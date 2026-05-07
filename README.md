@@ -1,4 +1,50 @@
-# Todo example using Supabase
+# agentic-qa-bench
+
+A benchmark target for the **agentic-qa** skill. This is the Supabase Next.js todo
+example, extracted from [supabase/supabase](https://github.com/supabase/supabase/tree/master/examples/todo-list/nextjs-todo-list)
+(Apache-2.0). The original Supabase setup instructions are preserved below.
+
+## What the skill does
+
+`agentic-qa` is a 5-phase QA workflow that pairs **Vibe-Check** (CLI browser
+automation) with **Playwright E2E** test generation:
+
+1. **Explore** — `vibium map` discovers selectors on the live page
+2. **Generate** — produce a Playwright Page Object Model + spec from the exploration
+3. **Execute & debug** — run the suite; use `vibium diff map` when selectors drift
+4. **CI/CD** — scaffold a GitHub Actions workflow
+5. **Maintain** — self-heal on UI changes
+
+The skill itself lives at `~/.claude/skills/agentic-qa/SKILL.md` and is also
+exported as a tarball for opencode use.
+
+## Why this app
+
+It exposes the surfaces phases 1–3 are designed to chew through:
+
+- **Supabase auth flow** — magic-link / email-password sign-in, redirect handling
+- **RLS-protected CRUD** — todo list with row-level security per user
+- **Realtime updates** — Supabase realtime subscription on the list
+- **Form validation** — empty-state, long-string, and submit-during-pending edge cases
+
+It does **not** exercise the skill's "auto-fill DB connect screen" feature — this
+app reads Supabase creds from env vars directly (`lib/initSupabase.ts`) rather than
+prompting in-UI. That feature needs a different benchmark target.
+
+## Running the benchmark
+
+```bash
+npm install
+# create a Supabase project, run the Todo List SQL quickstart (instructions below)
+cp .env.example .env.local   # then paste in your URL + anon key
+npm run dev
+```
+
+Then point the agentic-qa skill at `http://localhost:3000` and watch it work.
+
+---
+
+# Todo example using Supabase (upstream README)
 
 - Frontend:
   - [Next.js](https://github.com/vercel/next.js) - a React framework for production.
