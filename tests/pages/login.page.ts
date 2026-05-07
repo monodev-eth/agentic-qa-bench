@@ -10,7 +10,9 @@ export class LoginPage {
 
   constructor(page: Page) {
     this.page = page
-    this.heading = page.getByRole('heading', { name: 'Login' })
+    // Per skill rule: vibium maps interactive elements only; for non-mapped
+    // text use getByText, never an inferred role.
+    this.heading = page.getByText('Login', { exact: true })
     this.emailInput = page.getByPlaceholder('Your email address')
     this.passwordInput = page.getByPlaceholder('Your password')
     this.signInButton = page.getByRole('button', { name: /sign in/i })

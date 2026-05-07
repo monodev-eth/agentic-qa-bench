@@ -1,0 +1,7 @@
+@e1 [input type="text"] placeholder="make coffee"
+@e2 [button type="submit"] "Add"
+@e3 [input type="checkbox"]
+@e4 [button]
+@e5 [input type="checkbox"]
+@e6 [button]
+@e7 [button] "Logout"
