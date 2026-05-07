@@ -1,160 +1,96 @@
 # agentic-qa-bench
 
-A benchmark target for the **agentic-qa** skill. This is the Supabase Next.js todo
-example, extracted from [supabase/supabase](https://github.com/supabase/supabase/tree/master/examples/todo-list/nextjs-todo-list)
-(Apache-2.0). The original Supabase setup instructions are preserved below.
+A self-contained benchmark target for the [**agentic-qa**](https://github.com/monodev-eth/agentic-qa-skill) skill (and any similar QA-automation skill that drives a real browser).
 
-## What the skill does
+> **Status:** v0.1 — self-contained boot. Backend is fully mocked in-process; no Supabase, no Docker, no network. `npm install && npm run dev` and you're running.
 
-`agentic-qa` is a 5-phase QA workflow that pairs **Vibe-Check** (CLI browser
-automation) with **Playwright E2E** test generation:
+Originally derived from the [Supabase Next.js todo example](https://github.com/supabase/supabase/tree/master/examples/todo-list/nextjs-todo-list) (Apache-2.0). The upstream auth widget and live database have been replaced with an in-memory mock so the benchmark is reproducible.
 
-1. **Explore** — `vibium map` discovers selectors on the live page
-2. **Generate** — produce a Playwright Page Object Model + spec from the exploration
-3. **Execute & debug** — run the suite; use `vibium diff map` when selectors drift
-4. **CI/CD** — scaffold a GitHub Actions workflow
-5. **Maintain** — self-heal on UI changes
-
-The skill itself lives at `~/.claude/skills/agentic-qa/SKILL.md` and is also
-exported as a tarball for opencode use.
-
-## Why this app
-
-It exposes the surfaces phases 1–3 are designed to chew through:
-
-- **Supabase auth flow** — magic-link / email-password sign-in, redirect handling
-- **RLS-protected CRUD** — todo list with row-level security per user
-- **Realtime updates** — Supabase realtime subscription on the list
-- **Form validation** — empty-state, long-string, and submit-during-pending edge cases
-
-It does **not** exercise the skill's "auto-fill DB connect screen" feature — this
-app reads Supabase creds from env vars directly (`lib/initSupabase.ts`) rather than
-prompting in-UI. That feature needs a different benchmark target.
-
-## Running the benchmark
+## Quick start
 
 ```bash
+git clone https://github.com/monodev-eth/agentic-qa-bench.git
+cd agentic-qa-bench
 npm install
-# create a Supabase project, run the Todo List SQL quickstart (instructions below)
-cp .env.example .env.local   # then paste in your URL + anon key
 npm run dev
 ```
 
-Then point the agentic-qa skill at `http://localhost:3000` and watch it work.
+Open http://localhost:3000. Sign in with the seed credentials shown on the page:
 
----
+- **Email:** `demo@example.com`
+- **Password:** `demo1234`
 
-# Todo example using Supabase (upstream README)
+Two seeded todos appear ("Walk the dog", "Buy groceries"). You can add, toggle, and delete.
 
-- Frontend:
-  - [Next.js](https://github.com/vercel/next.js) - a React framework for production.
-  - [Tailwind](https://tailwindcss.com/) for styling and layout.
-  - [Supabase.js](https://supabase.com/docs/library/getting-started) for user management and realtime data syncing.
-- Backend:
-  - [supabase.com/dashboard](https://supabase.com/dashboard/): hosted Postgres database with restful API for usage with Supabase.js.
+## What this benchmarks
 
-## Deploy with Vercel
+The current v0.1 surface exercises **phases 1–3** of the agentic-qa skill:
 
-The Vercel deployment will guide you through creating a Supabase account and project. After installation of the Supabase integration, all relevant environment variables will be set up so that the project is usable immediately after deployment 🚀
+| Surface | Skill capability tested |
+|---------|------------------------|
+| `/` (logged-out) | Login form, validation, error state on bad creds, pending state during submit |
+| `/` (logged-in) | List rendering, optimistic CRUD (add, toggle, delete), logout |
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fsupabase%2Fsupabase%2Ftree%2Fmaster%2Fexamples%2Ftodo-list%2Fnextjs-todo-list&project-name=supabase-nextjs-todo-list&repository-name=supabase-nextjs-todo-list&integration-ids=oac_VqOgBHqhEoFTPzGkPd7L0iH6&external-id=https%3A%2F%2Fgithub.com%2Fsupabase%2Fsupabase%2Ftree%2Fmaster%2Fexamples%2Ftodo-list%2Fnextjs-todo-list)
+Future versions will add `/connect` (DB-connect-screen pattern), `/profile` (multi-field form validation), `/upload` (file input), `/todos/dnd` (drag-drop), and a `BENCHMARK.md` scoring rubric. See the [roadmap](#roadmap) below.
 
-### 1. Create new project
+## How it works
 
-Sign up to Supabase - [https://supabase.com/dashboard](https://supabase.com/dashboard) and create a new project. Wait for your database to start.
+```
+pages/index.tsx
+    └── components/LoginForm.tsx ──┐
+    └── components/TodoList.tsx ───┤
+                                   ▼
+                          lib/initSupabase.ts
+                                   │
+                  ┌────────────────┴───────────────┐
+                  ▼                                ▼
+         lib/mockClient.ts             @supabase/ssr (real)
+       (in-memory, default)         (when NEXT_PUBLIC_USE_REAL_SUPABASE=true)
+```
 
-### 2. Run "Todo List" Quickstart
+`lib/mockClient.ts` implements the slice of the Supabase JS API the app uses:
+`auth.{getSession, onAuthStateChange, signInWithPassword, signOut}` and
+`from('todos').{select, insert, update, delete, eq, order, single, throwOnError}`.
+Data resets on every page reload — every benchmark run starts from the same fixture.
 
-Once your database has started, run the "Todo List" quickstart. Inside of your project, enter the `SQL editor` tab and scroll down until you see `TODO LIST: Build a basic todo list with Row Level Security`.
+## Running the agentic-qa skill against this app
 
-### 3. Get the URL and Key
+After `npm run dev` is up at http://localhost:3000:
 
-Go to the Project Settings (the cog icon), open the API tab, and find your API URL and `anon` key, you'll need these in the next step.
+```
+> /agentic-qa QA the login flow at http://localhost:3000
+```
 
-The `anon` key is your client-side API key. It allows "anonymous access" to your database, until the user has logged in. Once they have logged in, the keys will switch to the user's own login token. This enables row level security for your data. Read more about this [below](#postgres-row-level-security).
+The skill walks through Phase 0 (boot check) → 1 (vibium map) → 2 (POM + spec generation) → 3 (test execution + debug). Reference Playwright tests this skill should produce live in `tests/` — they pass against the current build.
 
-![image](https://user-images.githubusercontent.com/10214025/88916245-528c2680-d298-11ea-8a71-708f93e1ce4f.png)
-
-**_NOTE_**: The `secret` key has full access to your data, bypassing any security policies. These keys have to be kept secret and are meant to be used in server environments and never on a client or browser.
-
-## Supabase details
-
-### Using a Remote Supabase Project
-
-1. Create or select a project on [Supabase Dashboard](https://supabase.com/dashboard).
-2. Copy and fill the dotenv template `cp .env.production.example .env.production`
-3. Link the local project and merge the local configuration with the remote one:
+## Reference tests
 
 ```bash
-SUPABASE_ENV=production npx supabase@latest link --project-ref <your-project-ref>
+npx playwright install chromium  # first time
+npx playwright test
 ```
 
-3. Sync the configuration:
+`tests/` contains a hand-written Page Object + spec that mirrors what a successful skill run should produce. Use these as a sanity check that the bench app behaves as expected.
+
+## Switching to real Supabase (optional)
+
+If you want to point this app at a live Supabase project (e.g. to develop against real RLS / realtime):
 
 ```bash
-SUPABASE_ENV=production npx supabase@latest config push
+cp .env.example .env.local
+# fill in NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+echo 'NEXT_PUBLIC_USE_REAL_SUPABASE=true' >> .env.local
+npm run dev
 ```
 
-4. Sync the database schema:
+You'll need to create a Supabase project and run the "Todo List" SQL quickstart from the [upstream Supabase docs](https://github.com/supabase/supabase/tree/master/examples/todo-list/nextjs-todo-list#readme). This path is **not** the benchmark mode — it's only useful for live development against the real backend.
 
-```bash
-SUPABASE_ENV=production npx supabase@latest db push
-```
+## Roadmap
 
-## Vercel Preview with Branching
+- **v0.1** ✅ Self-contained boot — replace Supabase with in-memory mock; remove auth-ui-react widget; ship a stable login + todo CRUD surface.
+- **v0.2** — Add `/connect`, `/profile`, `/upload` scenarios with planted defects. Ship `BENCHMARK.md` + scoring rubric.
+- **v0.3** — Add `/todos/dnd` (drag-drop). Add a `score.ts` helper that reads test results and emits a JSON score card.
 
-Supabase integrates seamlessly with Vercel's preview branches, giving each branch a dedicated Supabase project. This setup allows testing database migrations or service configurations safely before applying them to production.
+## License
 
-### Steps
-
-1. Ensure the Vercel project is linked to a Git repository.
-2. Configure the "Preview" environment variables in Vercel:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-
-3. Create a new branch, make changes (e.g., update `max_frequency`), and push the branch to Git.
-   - Open a pull request to trigger Vercel + Supabase integration.
-   - Upon successful deployment, the preview environment reflects the changes.
-
-![Preview Checks](https://github.com/user-attachments/assets/db688cc2-60fd-4463-bbed-e8ecc11b1a39)
-
----
-
-### Postgres Row level security
-
-This project uses very high-level Authorization using Postgres' Row Level Security.
-When you start a Postgres database on Supabase, we populate it with an `auth` schema, and some helper functions.
-When a user logs in, they are issued a JWT with the role `authenticated` and their UUID.
-We can use these details to provide fine-grained control over what each user can and cannot do.
-
-This is a trimmed-down schema, with the policies:
-
-```sql
-create table todos (
-  id bigint generated by default as identity primary key,
-  user_id uuid references auth.users not null,
-  task text check (char_length(task) > 3),
-  is_complete boolean default false,
-  inserted_at timestamp with time zone default timezone('utc'::text, now()) not null
-);
-
-alter table todos enable row level security;
-
-create policy "Individuals can create todos." on todos for
-    insert with check ((select auth.uid()) = user_id);
-
-create policy "Individuals can view their own todos. " on todos for
-    select using ((select auth.uid()) = user_id);
-
-create policy "Individuals can update their own todos." on todos for
-    update using ((select auth.uid()) = user_id);
-
-create policy "Individuals can delete their own todos." on todos for
-    delete using ((select auth.uid()) = user_id);
-```
-
-## Authors
-
-- [Supabase](https://supabase.com)
-
-Supabase is open source. We'd love for you to follow along and get involved at https://github.com/supabase/supabase
+This repo retains the upstream Apache-2.0 license. See [LICENSE](./LICENSE).

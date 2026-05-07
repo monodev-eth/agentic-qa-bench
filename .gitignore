@@ -5,3 +5,11 @@ node_modules/
 .credentials.json
 *.log
 .DS_Store
+
+# Build artifacts
+next-env.d.ts
+styles/app.css
+
+# Playwright
+playwright-report/
+test-results/
